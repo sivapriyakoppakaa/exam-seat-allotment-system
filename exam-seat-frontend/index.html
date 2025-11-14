@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lendi Institute of Engineering and Technology</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Poppins, sans-serif}
+    body{
+      background:url('building.jpg') no-repeat center center/cover;
+      min-height:100vh;color:#fff;
+    }
+    .top-bar{background:#ffc107;color:#111;text-align:center;padding:6px 0;font-weight:600;font-size:14px}
+    .navbar{display:flex;align-items:center;justify-content:space-between;background:#002147;padding:12px 28px}
+    .navbar img{height:44px} .navbar h2{color:#fff;font-size:20px}
+
+    .tab-btns{background:#001b3a;padding:10px;text-align:center}
+    .tab-btns button{margin:6px;padding:8px 12px;border-radius:6px;border:none;background:#ffc107;cursor:pointer;font-weight:600}
+    .tab-btns button:hover{background:#ffca2c}
+
+    .container{display:flex;align-items:center;justify-content:center;height:78vh}
+    .box{background:rgba(0,0,0,0.48);padding:24px;border-radius:10px;width:760px;max-width:96%;text-align:center}
+    h1{font-size:32px;background:rgba(255,255,255,0.06);padding:18px;border-radius:8px;cursor:pointer}
+    h1:hover{background:#ffc107;color:#111}
+
+    input,select{padding:10px;border-radius:6px;border:none;margin:8px 6px;width:calc(50% - 16px)}
+    input[type=password]{letter-spacing:2px}
+    button.primary{margin:8px;padding:10px 16px;border-radius:6px;border:none;background:#ffc107;cursor:pointer}
+    button.danger{background:#d9534f;color:#fff}
+    .hidden{display:none!important}
+    hr{border:1px solid rgba(255,255,255,0.14);margin:16px 0}
+
+    #seatContainer{max-height:360px;overflow:auto;padding:8px;background:rgba(255,255,255,0.04);border-radius:6px;text-align:left}
+    .seat-item{display:flex;justify-content:space-between;align-items:center;padding:8px;background:rgba(0,0,0,0.42);margin-bottom:8px;border-radius:6px}
+    .note{opacity:0.9;font-size:13px;margin-top:10px}
+    @media(max-width:640px){input,select{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="top-bar">Exam Seat Allotment System | Lendi Institute of Engineering and Technology</div>
+  <div class="navbar"><img src="Lendi logo.png" alt="logo"><h2>Lendi Institute of Engineering and Technology</h2></div>
+
+  <div class="tab-btns">
+    <button type="button" data-action="open-tab" data-target="studentPanel">Student Panel</button>
+    <button type="button" data-action="open-tab" data-target="adminLogin">Admin Panel</button>
+  </div>
+
+  <!-- STUDENT PANEL -->
+  <div id="studentPanel" data-panel>
+    <div class="container" id="home">
+      <div class="box"><h1 onclick="openSemester()">Exam Seat Allotment System</h1></div>
+    </div>
+
+    <div class="container hidden" id="semester">
+      <div class="box">
+        <h2>Select Semester</h2>
+        <div style="margin-top:12px">
+          <button type="button" class="primary" onclick="openRoll('1-2')">1-2</button>
+          <button type="button" class="primary" onclick="openRoll('2-1')">2-1</button>
+          <button type="button" class="primary" onclick="openRoll('2-2')">2-2</button>
+          <button type="button" class="primary" onclick="openRoll('3-1')">3-1</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container hidden" id="rollInput">
+      <div class="box">
+        <h2>Enter Roll Number</h2>
+        <input id="rollNo" placeholder="Enter Roll No." type="text" />
+        <div style="margin-top:10px">
+          <button type="button" class="primary" onclick="fetchSeat()">Submit</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container hidden" id="resultBox">
+      <div class="box">
+        <h2>Seat Allotment Details</h2>
+        <p id="result"></p>
+        <button type="button" class="primary" onclick="goHome()">Go Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN (shown first on clicking Admin Panel) -->
+  <div id="adminLogin" data-panel class="hidden">
+    <div class="container">
+      <div class="box">
+        <h2>Admin Login</h2>
+        <input id="adminUser" placeholder="Username" type="text">
+        <input id="adminPass" placeholder="Password" type="password">
+        <div style="margin-top:12px">
+          <button type="button" class="primary" onclick="adminLogin()">Login</button>
+          <button type="button" onclick="showTab('studentPanel')">Cancel</button>
+        </div>
+        <div class="note">Demo credentials: <strong>admin</strong> / <strong>admin123</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL (hidden until correct login) -->
+  <div id="adminPanel" data-panel class="hidden">
+    <div class="container">
+      <div class="box">
+        <h2>Admin Seat Management</h2>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center">
+          <input id="rollNoAdmin" placeholder="Roll No">
+          <input id="semesterAdmin" placeholder="Semester">
+          <input id="roomNoAdmin" placeholder="Room No">
+          <input id="sessionAdmin" placeholder="Session">
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+          <button type="button" class="primary" onclick="addSeat()">Add Seat</button>
+          <button type="button" class="danger" onclick="adminLogout()">Logout</button>
+        </div>
+
+        <hr>
+        <h3>All Seat Allotments</h3>
+        <div id="seatContainer">No data loaded yet.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // CONFIG
+  const API_BASE = "http://localhost:5000/api/seats";
+  const DEMO_ADMIN_USER = "admin";
+  const DEMO_ADMIN_PASS = "admin123";
+
+  // Utility: hide/show panels by data-panel attribute
+  function showTab(tabId) {
+    console.log('[showTab] switching to:', tabId);
+    document.querySelectorAll('[data-panel]').forEach(el => el.classList.add('hidden'));
+    const el = document.getElementById(tabId);
+    if (!el) {
+      console.error('[showTab] no element with id', tabId);
+      return;
+    }
+    el.classList.remove('hidden');
+  }
+
+  // wire tab buttons (delegation)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="open-tab"]');
+    if (!btn) return;
+    const target = btn.getAttribute('data-target');
+    showTab(target);
+  });
+
+  // Student flows (unchanged)
+  function openSemester(){
+    document.getElementById('home').classList.add('hidden');
+    document.getElementById('semester').classList.remove('hidden');
+  }
+  function openRoll(sem){
+    localStorage.setItem('semester', sem);
+    document.getElementById('semester').classList.add('hidden');
+    document.getElementById('rollInput').classList.remove('hidden');
+  }
+
+  async function fetchSeat(){
+    const roll = document.getElementById('rollNo').value.trim();
+    const sem = localStorage.getItem('semester');
+    if (!roll) return alert('Please enter roll number');
+    try {
+      console.log('[fetchSeat] requesting', `${API_BASE}/${roll}`);
+      const res = await fetch(`${API_BASE}/${encodeURIComponent(roll)}`);
+      if (!res.ok) {
+        console.warn('[fetchSeat] response not ok', res.status);
+        return alert('Seat not found for this roll number');
+      }
+      const seat = await res.json();
+      if (!seat || typeof seat !== 'object') return alert('Invalid seat response from server');
+      if (seat.semester !== sem) return alert('This roll number is not in selected semester');
+
+      document.getElementById('rollInput').classList.add('hidden');
+      document.getElementById('resultBox').classList.remove('hidden');
+      document.getElementById('result').innerHTML = `
+        Roll No: ${seat.rollNo}<br>
+        Semester: ${seat.semester}<br>
+        Room No: ${seat.roomNo}<br>
+        Session: ${seat.session}
+      `;
+    } catch (err) {
+      console.error('[fetchSeat] error', err);
+      alert('Error connecting to backend (check console for details)');
+    }
+  }
+  function goHome(){
+    document.getElementById('resultBox').classList.add('hidden');
+    document.getElementById('home').classList.remove('hidden');
+  }
+
+  // ADMIN: login -> only then load seats
+  function adminLogin(){
+    const u = document.getElementById('adminUser').value.trim();
+    const p = document.getElementById('adminPass').value.trim();
+    if (!u || !p) return alert('Enter username and password');
+    if (u === DEMO_ADMIN_USER && p === DEMO_ADMIN_PASS) {
+      console.log('[adminLogin] success');
+      document.getElementById('adminUser').value = '';
+      document.getElementById('adminPass').value = '';
+      showTab('adminPanel');
+      loadSeats();
+    } else {
+      console.warn('[adminLogin] invalid credentials:', u);
+      alert('Invalid credentials');
+    }
+  }
+  function adminLogout(){
+    console.log('[adminLogout] logging out');
+    showTab('studentPanel');
+    // clear seat list to avoid confusion
+    document.getElementById('seatContainer').innerHTML = 'No data loaded yet.';
+  }
+
+  async function loadSeats(){
+    console.log('[loadSeats] fetching all seats from', API_BASE);
+    const container = document.getElementById('seatContainer');
+    container.innerHTML = 'Loading...';
+    try {
+      const res = await fetch(API_BASE);
+      if (!res.ok) {
+        console.error('[loadSeats] fetch failed:', res.status);
+        container.innerHTML = 'Failed to load seats (check backend).';
+        return;
+      }
+      const seats = await res.json();
+      if (!Array.isArray(seats)) {
+        console.warn('[loadSeats] server returned non-array:', seats);
+        container.innerHTML = 'No seat records found.';
+        return;
+      }
+      if (seats.length === 0) {
+        container.innerHTML = 'No seat records found.';
+        return;
+      }
+      container.innerHTML = '';
+      seats.forEach(seat => {
+        const div = document.createElement('div');
+        div.className = 'seat-item';
+        div.innerHTML = `
+          <div>
+            <strong>${escapeHtml(String(seat.rollNo || ''))}</strong>
+            <div style="font-size:13px;margin-top:4px">
+              Sem: ${escapeHtml(String(seat.semester || ''))} | Room: ${escapeHtml(String(seat.roomNo || ''))} | ${escapeHtml(String(seat.session || ''))}
+            </div>
+          </div>
+          <div style="font-size:12px;opacity:0.9">${seat._id ? escapeHtml(String(seat._id).slice(0,6)) : ''}</div>
+        `;
+        container.appendChild(div);
+      });
+      console.log('[loadSeats] rendered', seats.length, 'items');
+    } catch (err) {
+      console.error('[loadSeats] error', err);
+      container.innerHTML = 'Error loading seats (see console).';
+    }
+  }
+
+  /* replace existing addSeat() with this improved version */
+  async function addSeat() {
+    const rollEl = document.getElementById('rollNoAdmin');
+    const semEl  = document.getElementById('semesterAdmin');
+    const roomEl = document.getElementById('roomNoAdmin');
+    const sessEl = document.getElementById('sessionAdmin');
+    const addBtn = document.querySelector('button[onclick="addSeat()"]');
+
+    const seatData = {
+      rollNo: rollEl.value.trim(),
+      semester: semEl.value.trim(),
+      roomNo: roomEl.value.trim(),
+      session: sessEl.value.trim()
+    };
+
+    if (!seatData.rollNo || !seatData.semester || !seatData.roomNo || !seatData.session) {
+      return alert('Please fill all fields before adding a seat.');
+    }
+
+    // disable button to prevent double clicks
+    if (addBtn) addBtn.disabled = true;
+
+    try {
+      // Optionally: pre-check if roll exists to avoid creating a conflict
+      // const pre = await fetch(`${API_BASE}/${encodeURIComponent(seatData.rollNo)}`);
+      // if (pre.ok) { alert('A seat with this roll number already exists.'); return; }
+
+      const res = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seatData)
+      });
+
+      if (res.status === 201) {
+        // Success
+        const created = await res.json();
+        alert('Seat added successfully.');
+        // Clear inputs
+        rollEl.value = '';
+        semEl.value = '';
+        roomEl.value = '';
+        sessEl.value = '';
+        // reload list
+        loadSeats();
+      } else if (res.status === 409) {
+        // Conflict — duplicate roll/seat
+        const body = await res.json().catch(()=>({ message: 'Conflict' }));
+        alert(`Cannot add seat: ${body.message || 'Seat/roll already exists.'}`);
+      } else if (res.status === 400) {
+        const body = await res.json().catch(()=>({ message: 'Bad Request' }));
+        alert(`Invalid input: ${body.message || 'Please check the fields.'}`);
+      } else {
+        // unexpected error
+        const text = await res.text().catch(()=>null);
+        console.error('[addSeat] unexpected response', res.status, text);
+        alert(`Error adding seat (status ${res.status}). See console for details.`);
+      }
+    } catch (err) {
+      console.error('[addSeat] network/error', err);
+      alert('Network error while adding seat. Check server is running and CORS if needed.');
+    } finally {
+      if (addBtn) addBtn.disabled = false;
+    }
+  }
+
+  // small helper to avoid XSS in inserted text
+  function escapeHtml(str){ return str.replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+
+  // On load, default student panel
+  window.addEventListener('DOMContentLoaded', () => {
+    console.log('[page] DOMContentLoaded - default to studentPanel');
+    showTab('studentPanel');
+  });
+</script>
+</body>
+</html>
